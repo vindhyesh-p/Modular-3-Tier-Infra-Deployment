@@ -35,7 +35,7 @@ stages:
       inputs:
         provider: 'azurerm'
         command: 'init'
-        workingDirectory: '$(System.DefaultWorkingDirectory)/'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
         backendServiceArm: 'vkp-svc-new'
         backendAzureRmStorageAccountName: 'stterraformstate11'
         backendAzureRmContainerName: 'tfstate'
@@ -45,19 +45,19 @@ stages:
       inputs:
         provider: 'azurerm'
         command: 'validate'
-        workingDirectory: '$(System.DefaultWorkingDirectory)/'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
     - task: TerraformTask@5
       displayName: Terraform Plan (Save)
       inputs:
         provider: 'azurerm'
         command: 'plan'
-        workingDirectory: '$(System.DefaultWorkingDirectory)/'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
         environmentServiceNameAzureRM: 'vkp-svc-new'
         commandOptions: '-out=tfPlan'
     - task: PublishBuildArtifacts@1
       displayName: Publish Terraform Plan
       inputs:
-        PathtoPublish: '$(System.DefaultWorkingDirectory)/tfPlan'
+        PathtoPublish: '$(System.DefaultWorkingDirectory)/environments/dev/tfPlan'
         ArtifactName: 'terraform-plan'
         publishLocation: 'Container'
 - stage: ManualApproval
@@ -86,13 +86,13 @@ stages:
         buildType: 'current'
         downloadType: 'single'
         artifactName: 'terraform-plan'
-        downloadPath: '$(System.DefaultWorkingDirectory)'
+        downloadPath: '$(System.DefaultWorkingDirectory)/environments/dev'
     - task: TerraformTask@5
       displayName: Terraform Init
       inputs:
         provider: 'azurerm'
         command: 'init'
-        workingDirectory: '$(System.DefaultWorkingDirectory)/'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
         backendServiceArm: 'vkp-svc-new'
         backendAzureRmStorageAccountName: 'stterraformstate11'
         backendAzureRmContainerName: 'tfstate'
@@ -102,7 +102,7 @@ stages:
       inputs:
         provider: 'azurerm'
         command: 'apply'
-        workingDirectory: '$(System.DefaultWorkingDirectory)/'
-        commandOptions: 'tfplan'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
+        commandOptions: 'tfPlan'
         environmentServiceNameAzureRM: 'vkp-svc-new'
 
