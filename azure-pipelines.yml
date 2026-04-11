@@ -1,0 +1,112 @@
+trigger:
+  branches:
+     include:
+       - main
+
+pr: 
+ branches:
+    include:
+      - "*"
+
+pool: vkp-self-hosted-pool
+
+variables:
+ environment: dev
+
+
+name: 
+stages:
+- stage: Validate
+  displayName: Validate
+  condition: or(
+   eq(variables['Build.Reason'],'PullRequest'),
+   eq(variables['Build.SourceBranch'],'refs/heads/main')
+   )
+  jobs: 
+  - job: TerraformInstallPlan
+    displayName: Terraform_Install_Plan
+    steps:
+    - task: TerraformInstaller@1
+      displayName: Terraform Install
+      inputs:
+        terraformVersion: 'latest'
+    - task: TerraformTask@5
+      dependsOn: TerraformInstaller@1  
+      displayName: Terraform Init
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/'
+        backendServiceArm: 'vkp-svc-new'
+        backendAzureRmStorageAccountName: 'stterraformstate11'
+        backendAzureRmContainerName: 'tfstate'
+        backendAzureRmKey: '$(environment).tfstate'
+    - task: TerraformTask@5
+      displayName: Terraform Validate
+      inputs:
+        provider: 'azurerm'
+        command: 'validate'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/'
+    - task: TerraformTask@5
+      dependsOn: TerraformTask@5
+      displayName: Terraform Plan (Save)
+      inputs:
+        provider: 'azurerm'
+        command: 'plan'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/'
+        environmentServiceNameAzureRM: 'vkp-svc-new'
+        commandOptions: '-out=tfPlan'
+    - task: PublishBuildArtifacts@1
+      displayName: Publish Terraform Plan
+      inputs:
+        PathtoPublish: '$(System.DefaultWorkingDirectory)/tfPlan'
+        ArtifactName: 'terraform-plan'
+        publishLocation: 'FilePath'
+        TargetPath: 'Container'
+- stage: ManualApproval
+  dependsOn: Validate
+  displayName: Manual_Approval
+  jobs: 
+  - job: ManualApproval
+    displayName: Manual_Approval
+    pool: server
+    steps:
+    - task: ManualValidation@1
+      inputs:
+        notifyUsers: 'pandey.vindhyesh@gmail.com'
+        approvers: 'pandey.vindhyesh@gmail.com'
+        instructions: 'pls approve'
+- stage: Deploy
+  displayName: Deploy
+  dependsOn: ManualApproval
+  condition: eq(variables['Build.SourceBranch'],'refs/heads/main')
+  jobs: 
+  - job: Deploy
+    displayName: Deploy
+    steps:
+    - task: DownloadBuildArtifacts@1
+      inputs:
+        buildType: 'current'
+        downloadType: 'single'
+        artifactName: 'terraform-plan'
+        downloadPath: '$(System.DefaultWorkingDirectory)'
+    - task: TerraformTask@5
+      displayName: Terraform Init
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/'
+        backendServiceArm: 'vkp-svc-new'
+        backendAzureRmStorageAccountName: 'stterraformstate11'
+        backendAzureRmContainerName: 'tfstate'
+        backendAzureRmKey: '$(environment).tfstate'
+    - task: TerraformTask@5
+      dependsOn: TerraformTask@5
+      displayName: Terraform Apply (Saved Plan)
+      inputs:
+        provider: 'azurerm'
+        command: 'apply'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/'
+        commandOptions: 'tfplan'
+        environmentServiceNameAzureRM: 'vkp-svc-new'
+
