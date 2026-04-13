@@ -2,11 +2,12 @@ trigger:
   branches:
      include:
        - main
+       - feature*
 
-pr: 
- branches:
-    include:
-      - "*"
+# pr: 
+#  branches:
+#     include:
+#       - "*"
 
 pool: vkp-self-hosted-pool
 
